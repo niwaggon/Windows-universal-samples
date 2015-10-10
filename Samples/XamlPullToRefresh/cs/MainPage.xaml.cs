@@ -7,10 +7,12 @@ using System.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
 using Windows.Foundation;
 using Windows.Foundation.Collections;
+using Windows.UI.Composition;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Controls.Primitives;
 using Windows.UI.Xaml.Data;
+using Windows.UI.Xaml.Hosting;
 using Windows.UI.Xaml.Input;
 using Windows.UI.Xaml.Media;
 using Windows.UI.Xaml.Navigation;
@@ -38,6 +40,30 @@ namespace XamlPullToRefresh
             SV1.ChangeView(null, 100.0, null, true);
         }
 
+        private static ScrollViewer GetChildScroller(DependencyObject rootElement)
+        {
+            int childCount = VisualTreeHelper.GetChildrenCount(rootElement);
+            for (int i = 0; i < childCount; i++)
+            {
+                DependencyObject current = VisualTreeHelper.GetChild(rootElement, i);
+                if ((current.GetType()).Equals(typeof(ScrollViewer)))
+                {
+                    return (current as ScrollViewer);
+                }
+            }
+
+            for (int i = 0; i < childCount; i++)
+            {
+                DependencyObject current = VisualTreeHelper.GetChild(rootElement, i);
+                ScrollViewer temp = GetChildScroller(current);
+                if (temp != null)
+                    return temp;
+            }
+
+            return null;
+        }
+
+
         private void Current_SizeChanged(object sender, Windows.UI.Core.WindowSizeChangedEventArgs e)
         {
             InnerCustomPanel.InvalidateMeasure();
@@ -61,7 +87,7 @@ namespace XamlPullToRefresh
                 feed.Insert(0, i);
             }
             lastValue = lastValue - 10;
-            if(lastValue < 0)
+            if (lastValue < 0)
             {
                 PopulateFeed();
             }
@@ -73,6 +99,26 @@ namespace XamlPullToRefresh
         {
             // Hide the refresh indicator (SV1 is the outer ScrollViewer)
             SV1.ChangeView(null, 100, null);
+
+
+
+            ScrollViewer childScrollView = GetChildScroller(lv);
+            if(childScrollView != null)
+            {
+                CompositionPropertySet scrollingProperties = ElementCompositionPreview.GetScrollViewerManipulationPropertySet(childScrollView);
+
+                Visual elementVisual = ElementCompositionPreview.GetElementVisual(lv);
+                Visual childVisual = ElementCompositionPreview.GetElementChildVisual(lv);
+                Compositor comp = elementVisual.Compositor;
+
+                ExpressionAnimation elementAnimation = comp.CreateExpressionAnimation("(scrollingProperties.Translation.Y < 0) ? -scrollingProperties.Translation.Y : 0");
+                elementAnimation.SetReferenceParameter("scrollingProperties", scrollingProperties);
+                elementVisual.StartAnimation("Offset.Y", elementAnimation);
+
+                ExpressionAnimation childAnimation = comp.CreateExpressionAnimation("(scrollingProperties.Translation.Y < 0) ? scrollingProperties.Translation.Y : 0");
+                childAnimation.SetReferenceParameter("scrollingProperties", scrollingProperties);
+                childVisual.StartAnimation("Offset.Y", childAnimation);
+            }
         }
 
         private void ScrollViewer_ViewChanged(object sender, ScrollViewerViewChangedEventArgs e)
