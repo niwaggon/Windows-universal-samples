@@ -40,29 +40,28 @@ namespace XamlPullToRefresh
             SV1.ChangeView(null, 100.0, null, true);
         }
 
-        private static ScrollViewer GetChildScroller(DependencyObject rootElement)
+        private static T GetChildElement<T>(DependencyObject rootElement)
         {
             int childCount = VisualTreeHelper.GetChildrenCount(rootElement);
             for (int i = 0; i < childCount; i++)
             {
                 DependencyObject current = VisualTreeHelper.GetChild(rootElement, i);
-                if ((current.GetType()).Equals(typeof(ScrollViewer)))
+                if ((current.GetType()).Equals(typeof(T)))
                 {
-                    return (current as ScrollViewer);
+                    return (T)Convert.ChangeType(current, typeof(T));
                 }
             }
 
             for (int i = 0; i < childCount; i++)
             {
                 DependencyObject current = VisualTreeHelper.GetChild(rootElement, i);
-                ScrollViewer temp = GetChildScroller(current);
+                T temp = GetChildElement<T>(current);
                 if (temp != null)
                     return temp;
             }
 
-            return null;
+            return default(T);
         }
-
 
         private void Current_SizeChanged(object sender, Windows.UI.Core.WindowSizeChangedEventArgs e)
         {
@@ -102,20 +101,28 @@ namespace XamlPullToRefresh
 
 
 
-            ScrollViewer childScrollView = GetChildScroller(lv);
+            ScrollViewer childScrollView = GetChildElement<ScrollViewer>(lv);
             if(childScrollView != null)
             {
                 CompositionPropertySet scrollingProperties = ElementCompositionPreview.GetScrollViewerManipulationPropertySet(childScrollView);
+                Compositor comp = scrollingProperties.Compositor;
 
-                Visual elementVisual = ElementCompositionPreview.GetElementVisual(lv);
-                Visual childVisual = ElementCompositionPreview.GetElementChildVisual(lv);
-                Compositor comp = elementVisual.Compositor;
 
-                ExpressionAnimation elementAnimation = comp.CreateExpressionAnimation("(scrollingProperties.Translation.Y < 0) ? -scrollingProperties.Translation.Y : 0");
+                //
+                // Set up the animation on the content of the main scroller.  Animation will show a peek
+                // of the refresh indicator when the child listview is bouncing.
+                //
+                MyPanel tempGrid = GetChildElement<MyPanel>(SV1);
+                Visual elementVisual = ElementCompositionPreview.GetElementVisual(tempGrid);
+                ExpressionAnimation elementAnimation = comp.CreateExpressionAnimation(@" clamp(scrollingProperties.Translation.Y, 0, 500)");
                 elementAnimation.SetReferenceParameter("scrollingProperties", scrollingProperties);
                 elementVisual.StartAnimation("Offset.Y", elementAnimation);
 
-                ExpressionAnimation childAnimation = comp.CreateExpressionAnimation("(scrollingProperties.Translation.Y < 0) ? scrollingProperties.Translation.Y : 0");
+                //
+                // Setup the animation to negate the bounce on the listView's scroller
+                // 
+                Visual childVisual = ElementCompositionPreview.GetElementVisual(childScrollView);
+                ExpressionAnimation childAnimation = comp.CreateExpressionAnimation(@" -clamp(scrollingProperties.Translation.Y, 0, 500)");
                 childAnimation.SetReferenceParameter("scrollingProperties", scrollingProperties);
                 childVisual.StartAnimation("Offset.Y", childAnimation);
             }
