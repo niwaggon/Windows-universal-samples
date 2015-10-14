@@ -114,7 +114,7 @@ namespace XamlPullToRefresh
                 //
                 MyPanel tempGrid = GetChildElement<MyPanel>(SV1);
                 Visual elementVisual = ElementCompositionPreview.GetElementVisual(tempGrid);
-                ExpressionAnimation elementAnimation = comp.CreateExpressionAnimation(@" clamp(scrollingProperties.Translation.Y, 0, 500)");
+                ExpressionAnimation elementAnimation = comp.CreateExpressionAnimation(@" max(scrollingProperties.Translation.Y, 0)");
                 elementAnimation.SetReferenceParameter("scrollingProperties", scrollingProperties);
                 elementVisual.StartAnimation("Offset.Y", elementAnimation);
 
@@ -122,7 +122,7 @@ namespace XamlPullToRefresh
                 // Setup the animation to negate the bounce on the listView's scroller
                 // 
                 Visual childVisual = ElementCompositionPreview.GetElementVisual(childScrollView);
-                ExpressionAnimation childAnimation = comp.CreateExpressionAnimation(@" -clamp(scrollingProperties.Translation.Y, 0, 500)");
+                ExpressionAnimation childAnimation = comp.CreateExpressionAnimation(@" -max(scrollingProperties.Translation.Y, 0)");
                 childAnimation.SetReferenceParameter("scrollingProperties", scrollingProperties);
                 childVisual.StartAnimation("Offset.Y", childAnimation);
             }
